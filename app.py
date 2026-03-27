@@ -7,7 +7,7 @@ import streamlit as st
 from rag.chunker import build_chunks_from_pages
 from rag.config import AppSettings
 from rag.embedder import build_embeddings, get_embedder
-from rag.generator import answer_question, get_local_llm
+from rag.generator import answer_question, get_local_llm 
 from rag.parser import extract_pages_from_pdf_bytes
 from rag.retriever import filter_chunks, search_chunks
 from utils.style import inject_css
@@ -72,31 +72,32 @@ with st.sidebar:
     )
 
     st.markdown("### Generazione")
-    generation_mode = st.radio(
-        "Modalità risposta",
-        options=["llm_locale", "estrattiva"],
-        index=0 if settings.generation_mode == "llm_locale" else 1,
-        help="'llm_locale' usa llama.cpp con un modello GGUF pubblico. 'estrattiva' funziona anche senza LLM.",
+ generation_mode = st.radio(
+    "Modalità risposta",
+    options=["sintesi_locale_light", "estrattiva"],
+    index=0 if settings.generation_mode == "sintesi_locale_light" else 1,
+    help="'sintesi_locale_light' usa un piccolo modello locale via transformers. 'estrattiva' funziona anche senza LLM.",
+)
+
+with st.expander("Impostazioni sintesi locale", expanded=False):
+    llm_repo_id = st.text_input(
+        "HF repo modello",
+        value=settings.llm_repo_id,
+        help="Repo pubblico Hugging Face del modello small instruct.",
     )
-
-    with st.expander("Impostazioni LLM locale", expanded=False):
-        llm_repo_id = st.text_input(
-            "HF repo GGUF",
-            value=settings.llm_repo_id,
-            help="Repo pubblico Hugging Face del modello GGUF.",
-        )
-        llm_filename = st.text_input(
-            "Nome file GGUF",
-            value=settings.llm_filename,
-            help="Nome esatto del file GGUF da scaricare.",
-        )
-        llm_n_ctx = st.slider("Context window", min_value=1024, max_value=8192, value=settings.llm_n_ctx, step=512)
-        llm_max_tokens = st.slider("Max tokens risposta", min_value=128, max_value=1024, value=settings.llm_max_tokens, step=64)
-        llm_temperature = st.slider("Temperature", min_value=0.0, max_value=1.0, value=settings.llm_temperature, step=0.05)
-
-    st.markdown("---")
-    st.caption(
-        "Per Streamlit Community Cloud conviene tenere: top-k basso, modello GGUF piccolo, risposte brevi."
+    llm_max_new_tokens = st.slider(
+        "Max nuovi token risposta",
+        min_value=80,
+        max_value=400,
+        value=settings.llm_max_new_tokens,
+        step=20,
+    )
+    llm_temperature = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=1.0,
+        value=settings.llm_temperature,
+        step=0.05,
     )
 
 
@@ -211,7 +212,7 @@ if st.session_state.index_ready:
     mc1, mc2, mc3 = st.columns(3)
     mc1.metric("Documento", st.session_state.doc_name or "—")
     mc2.metric("Chunk attivi", len(filtered_chunks))
-    mc3.metric("Modalità", "LLM locale" if generation_mode == "llm_locale" else "Estrattiva")
+mc3.metric("Modalità", "Sintesi locale" if generation_mode == "sintesi_locale_light" else "Estrattiva")
 
     question = st.text_area(
         "Fai una domanda sul documento",
@@ -240,21 +241,20 @@ if st.session_state.index_ready:
                 min_score=min_score,
             )
 
-            local_settings = AppSettings(
-                embedding_model_name=embedding_model_name,
-                top_k=top_k,
-                min_score=min_score,
-                generation_mode=generation_mode,
-                llm_repo_id=llm_repo_id,
-                llm_filename=llm_filename,
-                llm_n_ctx=llm_n_ctx,
-                llm_max_tokens=llm_max_tokens,
-                llm_temperature=llm_temperature,
-            )
+local_settings = AppSettings(
+    embedding_model_name=embedding_model_name,
+    top_k=top_k,
+    min_score=min_score,
+    generation_mode=generation_mode,
+    llm_repo_id=llm_repo_id,
+    llm_max_new_tokens=llm_max_new_tokens,
+    llm_temperature=llm_temperature,
+    llm_do_sample=False,
+)
 
             llm = None
             llm_error: Optional[str] = None
-            if generation_mode == "llm_locale":
+if generation_mode == "sintesi_locale_light":
                 try:
                     llm = cached_llm(local_settings.to_tuple())
                 except Exception as exc:
