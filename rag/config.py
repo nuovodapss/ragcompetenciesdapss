@@ -14,15 +14,17 @@ class AppSettings:
     top_k: int = int(os.getenv("TOP_K", "4"))
     min_score: float = float(os.getenv("MIN_SCORE", "0.20"))
 
-    generation_mode: str = os.getenv("GENERATION_MODE", "llm_locale")
+    generation_mode: str = os.getenv("GENERATION_MODE", "sintesi_locale_light")
 
-    # Modifica questi due valori se vuoi un altro GGUF pubblico.
-    llm_repo_id: str = os.getenv("LLM_REPO_ID", "bartowski/Qwen2.5-0.5B-Instruct-GGUF")
-    llm_filename: str = os.getenv("LLM_FILENAME", "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf")
+    # Modello piccolo per riformulazione locale via transformers
+    llm_repo_id: str = os.getenv(
+        "LLM_REPO_ID",
+        "HuggingFaceTB/SmolLM2-360M-Instruct",
+    )
 
-    llm_n_ctx: int = int(os.getenv("LLM_N_CTX", "4096"))
-    llm_max_tokens: int = int(os.getenv("LLM_MAX_TOKENS", "512"))
+    llm_max_new_tokens: int = int(os.getenv("LLM_MAX_NEW_TOKENS", "220"))
     llm_temperature: float = float(os.getenv("LLM_TEMPERATURE", "0.10"))
+    llm_do_sample: bool = os.getenv("LLM_DO_SAMPLE", "false").lower() == "true"
 
     def to_tuple(self) -> Tuple:
         return (
@@ -31,10 +33,23 @@ class AppSettings:
             self.min_score,
             self.generation_mode,
             self.llm_repo_id,
-            self.llm_filename,
-            self.llm_n_ctx,
-            self.llm_max_tokens,
+            self.llm_max_new_tokens,
             self.llm_temperature,
+            self.llm_do_sample,
+        )
+
+    @classmethod
+    def from_tuple(cls, values: Tuple) -> "AppSettings":
+        return cls(
+            embedding_model_name=values[0],
+            top_k=values[1],
+            min_score=values[2],
+            generation_mode=values[3],
+            llm_repo_id=values[4],
+            llm_max_new_tokens=values[5],
+            llm_temperature=values[6],
+            llm_do_sample=values[7],
+        )            self.llm_temperature,
         )
 
     @classmethod
