@@ -1,79 +1,76 @@
 from __future__ import annotations
 
-import re
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import numpy as np
 
+from rag.embedder import get_embedder
 
-def filter_chunks(
-    chunks: List[Dict],
-    areas: Optional[List[str]] = None,
-    dimensions: Optional[List[str]] = None,
-    code_or_keyword: Optional[str] = None,
-) -> List[Dict]:
-    areas = areas or []
-    dimensions = dimensions or []
-    needle = (code_or_keyword or "").strip().lower()
 
-    filtered = []
-    for chunk in chunks:
-        if areas and chunk.get("area") not in areas:
-            continue
-        if dimensions and chunk.get("dimension") not in dimensions:
-            continue
-        if needle:
-            haystack = " ".join(
-                [
-                    chunk.get("title") or "",
-                    chunk.get("code") or "",
-                    chunk.get("area") or "",
-                    chunk.get("dimension") or "",
-                    chunk.get("text") or "",
-                ]
-            ).lower()
-            if needle not in haystack:
-                continue
-        filtered.append(chunk)
-    return filtered
+def _to_numpy(x) -> np.ndarray:
+    arr = np.asarray(x, dtype=np.float32)
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+    return arr
+
+
+def _normalize_rows(x: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(x, axis=1, keepdims=True)
+    norms = np.where(norms == 0.0, 1.0, norms)
+    return x / norms
+
+
+def cosine_similarity_matrix(query_vec: np.ndarray, doc_matrix: np.ndarray) -> np.ndarray:
+    query_vec = _normalize_rows(_to_numpy(query_vec))
+    doc_matrix = _normalize_rows(_to_numpy(doc_matrix))
+    sims = np.dot(doc_matrix, query_vec.T).reshape(-1)
+    return sims
 
 
 def search_chunks(
     question: str,
     chunks: List[Dict],
-    candidate_indices: List[int],
-    embeddings_matrix: np.ndarray,
-    embedder,
-    top_k: int,
-    min_score: float,
+    embeddings,
+    model_name: str,
+    top_k: int = 4,
 ) -> List[Dict]:
-    if not candidate_indices:
+    if not question or not question.strip():
         return []
 
-    question_vec = embedder.encode([question])[0]
-    candidate_matrix = embeddings_matrix[candidate_indices]
-    scores = candidate_matrix @ question_vec
+    if not chunks:
+        return []
 
-    ranked_positions = np.argsort(scores)[::-1]
+    if embeddings is None:
+        return []
+
+    embedder = get_embedder(model_name)
+    query_embedding = embedder.encode(
+        [question],
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+    )
+
+    doc_embeddings = _to_numpy(embeddings)
+    similarities = cosine_similarity_matrix(query_embedding, doc_embeddings)
+
     results: List[Dict] = []
+    for idx, score in enumerate(similarities):
+        chunk = chunks[idx].copy()
+        chunk["score"] = float(score)
+        results.append(chunk)
 
-    for pos in ranked_positions[: max(top_k * 2, top_k)]:
-        score = float(scores[pos])
-        if score < min_score:
-            continue
-        chunk = chunks[candidate_indices[pos]]
-        display_text = chunk["text"]
-        if len(display_text) > 2400:
-            display_text = display_text[:2400].rstrip() + "…"
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:top_k]
 
-        results.append(
-            {
-                **chunk,
-                "score": score,
-                "display_text": display_text,
-            }
-        )
-        if len(results) >= top_k:
-            break
 
-    return results
+def filter_chunks(results: List[Dict], min_score: float = 0.20) -> List[Dict]:
+    if not results:
+        return []
+
+    filtered = [r for r in results if float(r.get("score", 0.0)) >= float(min_score)]
+
+    if filtered:
+        return filtered
+
+    # fallback: se nessun chunk supera la soglia, restituisci almeno il migliore
+    return results[:1]
