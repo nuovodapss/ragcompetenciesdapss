@@ -3,3 +3,6 @@ pypdf>=5.0.0
 sentence-transformers>=3.0.0
 numpy>=1.26.0
 huggingface-hub>=0.24.0
+transformers>=4.45.0
+torch>=2.2.0
+safetensors>=0.4.0
