@@ -229,14 +229,13 @@ if ask:
         st.stop()
 
     with st.spinner("Recupero dei passaggi più rilevanti..."):
-        raw_results = search_chunks(
-            question=question,
-            chunks=chunks,
-            embeddings=vectors,
-            model_name=embedding_model_name,
-            top_k=top_k,
-        )
-        results = filter_chunks(raw_results, min_score=min_score)
+raw_results = search_chunks(
+    question=question,
+    chunks=chunks,
+    embeddings=vectors,
+    model_name=embedding_model_name,
+    top_k=top_k,
+)
 
     output = answer_question(
         question=question,
