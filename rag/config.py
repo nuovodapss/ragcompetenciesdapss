@@ -14,7 +14,7 @@ class AppSettings:
     top_k: int = int(os.getenv("TOP_K", "4"))
     min_score: float = float(os.getenv("MIN_SCORE", "0.20"))
 
-    generation_mode: str = os.getenv("GENERATION_MODE", "estrattiva")
+    generation_mode: str = os.getenv("GENERATION_MODE", "llm_locale")
 
     # Modifica questi due valori se vuoi un altro GGUF pubblico.
     llm_repo_id: str = os.getenv("LLM_REPO_ID", "bartowski/Qwen2.5-0.5B-Instruct-GGUF")
