@@ -16,7 +16,6 @@ class AppSettings:
 
     generation_mode: str = os.getenv("GENERATION_MODE", "sintesi_locale_light")
 
-    # Modello piccolo per riformulazione locale via transformers
     llm_repo_id: str = os.getenv(
         "LLM_REPO_ID",
         "HuggingFaceTB/SmolLM2-360M-Instruct",
@@ -49,19 +48,4 @@ class AppSettings:
             llm_max_new_tokens=values[5],
             llm_temperature=values[6],
             llm_do_sample=values[7],
-        )            self.llm_temperature,
-        )
-
-    @classmethod
-    def from_tuple(cls, values: Tuple) -> "AppSettings":
-        return cls(
-            embedding_model_name=values[0],
-            top_k=values[1],
-            min_score=values[2],
-            generation_mode=values[3],
-            llm_repo_id=values[4],
-            llm_filename=values[5],
-            llm_n_ctx=values[6],
-            llm_max_tokens=values[7],
-            llm_temperature=values[8],
         )
