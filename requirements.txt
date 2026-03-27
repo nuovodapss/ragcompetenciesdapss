@@ -1,0 +1,6 @@
+streamlit>=1.39
+pypdf>=5.0.0
+sentence-transformers>=3.0.0
+numpy>=1.26.0
+huggingface-hub>=0.24.0
+llama-cpp-python>=0.3.0
