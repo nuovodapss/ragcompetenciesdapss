@@ -7,10 +7,34 @@ from rag.prompts import SYSTEM_PROMPT_IT, build_user_prompt
 
 
 STOPWORDS_IT = {
-    "come", "della", "delle", "degli", "nella", "nelle", "quali", "sono",
-    "dalla", "dallo", "dell", "dell'", "dello", "questa", "questo", "quello",
-    "quella", "sugli", "sulla", "sulle", "dopo", "prima", "perché",
-    "quale", "dove", "quando", "quindi", "oppure",
+    "come",
+    "della",
+    "delle",
+    "degli",
+    "nella",
+    "nelle",
+    "quali",
+    "sono",
+    "dalla",
+    "dallo",
+    "dell",
+    "dell'",
+    "dello",
+    "questa",
+    "questo",
+    "quello",
+    "quella",
+    "sugli",
+    "sulla",
+    "sulle",
+    "dopo",
+    "prima",
+    "perché",
+    "quale",
+    "dove",
+    "quando",
+    "quindi",
+    "oppure",
 }
 
 
@@ -40,13 +64,15 @@ class LocalTransformersGenerator:
     ) -> str:
         full_prompt = f"{SYSTEM_PROMPT_IT}\n\n{prompt}\n"
 
-outputs = self.pipe(
-    full_prompt,
-    max_new_tokens=max_new_tokens,
-    do_sample=False,
-    temperature=0.0,
-    return_full_text=False,
-)
+        outputs = self.pipe(
+            full_prompt,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            temperature=0.0,
+            return_full_text=False,
+            truncation=True,
+        )
+
         text = outputs[0]["generated_text"].strip()
         return text
 
@@ -99,15 +125,17 @@ def build_extractive_answer(question: str, results: List[Dict]) -> str:
 
     for hit in results:
         label_bits = []
+
         if hit.get("code"):
             label_bits.append(hit["code"])
+
         if hit.get("title"):
             label_bits.append(hit["title"])
 
         label = " — ".join(label_bits) if label_bits else hit.get("title", "Passaggio")
         lines.append(f"\n**{label}**")
 
-        for sentence in best_sentences(hit["text"], question, limit=2):
+        for sentence in best_sentences(hit.get("text", ""), question, limit=2):
             lines.append(f"- {sentence}")
 
     lines.append(
@@ -119,6 +147,19 @@ def build_extractive_answer(question: str, results: List[Dict]) -> str:
 def postprocess_answer(text: str) -> str:
     text = text.strip()
     text = re.sub(r"\n{3,}", "\n\n", text)
+
+    lines = text.splitlines()
+    cleaned_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        if re.match(r"^\\d+\\.\\s*$", stripped):
+            continue
+
+        cleaned_lines.append(line)
+
+    text = "\n".join(cleaned_lines).strip()
     return text
 
 
@@ -141,6 +182,7 @@ def answer_question(
 
     if mode == "sintesi_locale_light" and llm is not None:
         prompt = build_user_prompt(question, results)
+
         try:
             answer = llm.generate(
                 prompt=prompt,
@@ -152,6 +194,7 @@ def answer_question(
 
             if not answer:
                 raise RuntimeError("Il modello ha restituito una risposta vuota.")
+
         except Exception as exc:
             answer = build_extractive_answer(question, results)
             warning = (
@@ -160,13 +203,15 @@ def answer_question(
             )
     else:
         answer = build_extractive_answer(question, results)
+
         if mode == "sintesi_locale_light" and llm is None:
-            warning = (
-                f"Sintesi locale non caricata. Motivo: {llm_error}. "
-                "Ho usato la modalità estrattiva."
-                if llm_error
-                else "Sintesi locale non caricata. Ho usato la modalità estrattiva."
-            )
+            if llm_error:
+                warning = (
+                    f"Sintesi locale non caricata. Motivo: {llm_error}. "
+                    "Ho usato la modalità estrattiva."
+                )
+            else:
+                warning = "Sintesi locale non caricata. Ho usato la modalità estrattiva."
 
     return {
         "answer_markdown": answer,
