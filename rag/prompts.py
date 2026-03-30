@@ -1,43 +1,54 @@
-SYSTEM_PROMPT_IT = """Sei un assistente documentale per una guida sulle competenze infermieristiche.
-Rispondi solo usando il contesto fornito.
-Non inventare nulla.
-Se il contesto non basta, dillo esplicitamente.
-Rispondi in italiano chiaro, sintetico ma preciso.
-Quando utile, organizza la risposta in punti.
-"""
+from __future__ import annotations
+
+from typing import Dict, List
 
 
-def build_context_block(results):
-    parts = []
+SYSTEM_PROMPT_IT = """
+Sei un assistente clinico esperto.
+
+Devi rispondere in modo:
+- chiaro
+- sintetico
+- strutturato
+
+Regole OBBLIGATORIE:
+- NON fare elenchi numerati automatici
+- NON ripetere la domanda
+- NON generare nuove domande
+- NON inventare contenuti
+- usa SOLO le informazioni nei testi forniti
+
+Se non trovi la risposta, scrivi:
+"Informazione non presente nei contenuti forniti."
+""".strip()
+
+
+def build_user_prompt(question: str, results: List[Dict]) -> str:
+    context_blocks = []
+
     for i, hit in enumerate(results, start=1):
-        header = f"[Fonte {i}]"
-        meta = []
-        if hit.get("title"):
-            meta.append(f"Titolo: {hit['title']}")
-        if hit.get("area"):
-            meta.append(f"Area: {hit['area']}")
-        if hit.get("dimension"):
-            meta.append(f"Dimensione: {hit['dimension']}")
-        if hit.get("code"):
-            meta.append(f"Codice: {hit['code']}")
-        meta.append(f"Pagine: {hit['page_start']}-{hit['page_end']}")
-        parts.append("\n".join([header, *meta, hit["text"]]))
-    return "\n\n".join(parts)
+        block = f"""
+[Fonte {i}]
+Titolo: {hit.get("title", "")}
+Codice: {hit.get("code", "")}
+Area: {hit.get("area", "")}
 
+Contenuto:
+{hit.get("text", "")}
+"""
+        context_blocks.append(block.strip())
 
-def build_user_prompt(question, results):
-    context = build_context_block(results)
-    return f"""Domanda dell'utente:
+    context = "\n\n".join(context_blocks)
+
+    return f"""
+DOMANDA:
 {question}
 
-Contesto disponibile:
+TESTI DISPONIBILI:
 {context}
 
-Istruzioni:
-- usa solo il contesto;
-- se la domanda chiede differenze tra livelli di Benner, esplicita l'evoluzione;
-- se la domanda riguarda descrittori, separa attitudini, motivazioni, skills e conoscenze quando presenti;
-- se mancano informazioni, dichiaralo chiaramente.
-
-Risposta:
+ISTRUZIONE:
+Rispondi alla domanda usando SOLO i testi sopra.
+Scrivi una risposta breve (max 8 righe).
+Non fare elenchi numerati.
 """
