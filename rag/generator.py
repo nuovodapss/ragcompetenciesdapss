@@ -40,14 +40,13 @@ class LocalTransformersGenerator:
     ) -> str:
         full_prompt = f"{SYSTEM_PROMPT_IT}\n\n{prompt}\n"
 
-        outputs = self.pipe(
-            full_prompt,
-            max_new_tokens=max_new_tokens,
-            do_sample=do_sample,
-            temperature=temperature if do_sample else None,
-            return_full_text=False,
-            truncation=True,
-        )
+outputs = self.pipe(
+    full_prompt,
+    max_new_tokens=max_new_tokens,
+    do_sample=False,
+    temperature=0.0,
+    return_full_text=False,
+)
         text = outputs[0]["generated_text"].strip()
         return text
 
