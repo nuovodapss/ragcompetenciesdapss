@@ -1,30 +1,33 @@
 from __future__ import annotations
 
-from typing import Iterable, List
+from typing import List
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
 
-class SentenceTransformerEmbedder:
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-        self.model = SentenceTransformer(model_name)
+def get_embedder(model_name: str) -> SentenceTransformer:
+    return SentenceTransformer(model_name)
 
-    def encode(self, texts: List[str]) -> np.ndarray:
-        vectors = self.model.encode(
+
+def build_embeddings(texts: List[str], embedder: SentenceTransformer) -> np.ndarray:
+    if not texts:
+        return np.empty((0, 0), dtype=np.float32)
+
+    try:
+        vectors = embedder.encode(
             texts,
-            batch_size=16,
-            show_progress_bar=False,
-            normalize_embeddings=True,
             convert_to_numpy=True,
+            show_progress_bar=False,
         )
-        return vectors.astype("float32")
+    except TypeError:
+        try:
+            vectors = embedder.encode(
+                texts,
+                convert_to_numpy=True,
+            )
+        except TypeError:
+            vectors = embedder.encode(texts)
 
-
-def get_embedder(model_name: str) -> SentenceTransformerEmbedder:
-    return SentenceTransformerEmbedder(model_name=model_name)
-
-
-def build_embeddings(texts: Iterable[str], embedder: SentenceTransformerEmbedder) -> np.ndarray:
-    return embedder.encode(list(texts))
+    vectors = np.asarray(vectors, dtype=np.float32)
+    return vectors
