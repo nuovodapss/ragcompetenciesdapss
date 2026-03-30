@@ -29,5 +29,4 @@ def build_embeddings(texts: List[str], embedder: SentenceTransformer) -> np.ndar
         except TypeError:
             vectors = embedder.encode(texts)
 
-    vectors = np.asarray(vectors, dtype=np.float32)
-    return vectors
+    return np.asarray(vectors, dtype=np.float32)
